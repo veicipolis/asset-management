@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: asset-management
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/asset_management
+    username: asset_app
+    password: ${ASSET_DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
