@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>资产列表</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #243047;
+            background: #f7f9fc;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th { background: #edf2fa; }
+        a { color: #2563eb; }
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+<a th:href="@{/}">返回首页</a>
+<h1>资产列表</h1>
+
+<p>共 <strong th:text="${assetPage.totalElements}">0</strong> 项资产</p>
+
+<table>
+    <thead>
+    <tr>
+        <th>资产编号</th>
+        <th>名称</th>
+        <th>分类</th>
+        <th>购置日期</th>
+        <th>原值（元）</th>
+        <th>存放位置</th>
+        <th>状态</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="asset : ${assetPage.content}">
+        <td th:text="${asset.assetCode}"></td>
+        <td th:text="${asset.name}"></td>
+        <td th:text="${asset.category.name}"></td>
+        <td th:text="${asset.purchaseDate}"></td>
+        <td th:text="${#numbers.formatDecimal(asset.originalValue, 1, 2)}"></td>
+        <td th:text="${asset.location}"></td>
+        <td th:switch="${asset.status.name()}">
+            <span th:case="'IDLE'">闲置</span>
+            <span th:case="'IN_USE'">使用中</span>
+            <span th:case="'MAINTENANCE'">维修中</span>
+            <span th:case="'SCRAPPED'">已报废</span>
+            <span th:case="*" th:text="${asset.status}"></span>
+        </td>
+    </tr>
+    <tr th:if="${assetPage.empty}">
+        <td colspan="7">暂无资产数据</td>
+    </tr>
+    </tbody>
+</table>
+
+<nav th:if="${assetPage.totalPages > 0}">
+    <a th:if="${assetPage.hasPrevious()}"
+       th:href="@{/assets(page=${assetPage.number - 1})}">上一页</a>
+
+    <span>
+            第 <span th:text="${assetPage.number + 1}"></span> 页，
+            共 <span th:text="${assetPage.totalPages}"></span> 页
+        </span>
+
+    <a th:if="${assetPage.hasNext()}"
+       th:href="@{/assets(page=${assetPage.number + 1})}">下一页</a>
+</nav>
+</body>
+</html>
