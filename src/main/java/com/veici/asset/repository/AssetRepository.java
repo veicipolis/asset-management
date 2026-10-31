@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.veici.asset.entity.AssetStatus;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.util.Optional;
 
@@ -37,4 +39,8 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     );
 
     boolean existsByAssetCode(String assetCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Asset a WHERE a.id = :id")
+    Optional<Asset> findByIdForUpdate(@Param("id") Long id);
 }

@@ -53,4 +53,23 @@ public class OperationLogRepository {
                 .setParameter("afterJson", afterJson)
                 .executeUpdate();
     }
+
+    public void recordApplicationCreated(
+            Long actorId, Long applicationId, Long assetId, String purpose) {
+
+        entityManager.createNativeQuery("""
+            INSERT INTO operation_log
+                (actor_id, log_category, action,
+                 target_type, target_id, result, details)
+            VALUES
+                (:actorId, 'BUSINESS', 'APPLICATION_CREATE',
+                 'ASSET_APPLICATION', :applicationId, 'SUCCESS',
+                 JSON_OBJECT('assetId', :assetId, 'purpose', :purpose))
+            """)
+                .setParameter("actorId", actorId)
+                .setParameter("applicationId", applicationId)
+                .setParameter("assetId", assetId)
+                .setParameter("purpose", purpose)
+                .executeUpdate();
+    }
 }

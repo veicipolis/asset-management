@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>领用申请</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 680px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #243047;
+            background: #f7f9fc;
+        }
+        form {
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+        }
+        textarea {
+            box-sizing: border-box;
+            width: 100%;
+            margin: 10px 0;
+            padding: 12px;
+            font: inherit;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        button {
+            padding: 10px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font: inherit;
+            cursor: pointer;
+        }
+        .error { color: #b91c1c; }
+        a { color: #2563eb; }
+    </style>
+</head>
+<body>
+<a th:href="@{/employee/assets}">返回可领用资产</a>
+<h1>领用申请</h1>
+
+<p>资产编号：<span th:text="${asset.assetCode}"></span></p>
+<p>资产名称：<span th:text="${asset.name}"></span></p>
+<p>存放位置：<span th:text="${asset.location}"></span></p>
+
+<form method="post"
+      th:action="@{/employee/assets/{id}/apply(id=${asset.id})}"
+      th:object="${form}">
+
+    <div class="error" th:if="${#fields.hasAnyErrors()}">
+        <p th:each="error : ${#fields.allErrors()}"
+           th:text="${error}"></p>
+    </div>
+
+    <label for="purpose">领用用途</label>
+    <textarea id="purpose"
+              th:field="*{purpose}"
+              rows="5"
+              maxlength="200"
+              required
+              placeholder="请填写领用用途，最多200字"></textarea>
+
+    <button type="submit">提交申请</button>
+</form>
+</body>
+</html>

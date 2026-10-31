@@ -58,6 +58,9 @@
 <body>
 <a th:href="@{/}">返回首页</a>
 <h1>可领用资产</h1>
+<p th:if="${successMessage}"
+   th:text="${successMessage}"
+   style="color: #15803d;"></p>
 <p>以下资产当前处于闲置状态。</p>
 
 <form method="get" th:action="@{/employee/assets}">
@@ -102,6 +105,7 @@
         <th>名称</th>
         <th>分类</th>
         <th>存放位置</th>
+        <th>操作</th>
     </tr>
     </thead>
     <tbody>
@@ -110,9 +114,14 @@
         <td th:text="${asset.name}"></td>
         <td th:text="${asset.categoryName}"></td>
         <td th:text="${asset.location}"></td>
+        <td>
+            <a th:href="@{/employee/assets/{id}/apply(id=${asset.id})}">
+                申请领用
+            </a>
+        </td>
     </tr>
     <tr th:if="${assetPage.empty}">
-        <td colspan="4">暂无符合条件的可领用资产</td>
+        <td colspan="5">暂无符合条件的可领用资产</td>
     </tr>
     </tbody>
 </table>
