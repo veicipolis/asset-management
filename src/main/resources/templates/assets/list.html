@@ -30,11 +30,87 @@
             align-items: center;
             margin-top: 24px;
         }
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            align-items: end;
+            margin: 24px 0;
+        }
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        input, select, button {
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font: inherit;
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 <a th:href="@{/}">返回首页</a>
 <h1>资产列表</h1>
+<form method="get" th:action="@{/assets}">
+    <label>
+        资产编号
+        <input type="text" name="assetCode"
+               th:value="${assetCode}"
+               maxlength="50" placeholder="完整编号">
+    </label>
+
+    <label>
+        名称
+        <input type="text" name="name"
+               th:value="${name}"
+               maxlength="100" placeholder="名称关键词">
+    </label>
+
+    <label>
+        分类
+        <select name="categoryId">
+            <option value="">全部分类</option>
+            <option th:each="category : ${categories}"
+                    th:value="${category.id}"
+                    th:text="${category.name}"
+                    th:selected="${category.id == categoryId}">
+            </option>
+        </select>
+    </label>
+
+    <label>
+        状态
+        <select name="status">
+            <option value="">全部状态</option>
+            <option value="IDLE"
+                    th:selected="${status != null and status.name() == 'IDLE'}">
+                闲置
+            </option>
+            <option value="IN_USE"
+                    th:selected="${status != null and status.name() == 'IN_USE'}">
+                使用中
+            </option>
+            <option value="MAINTENANCE"
+                    th:selected="${status != null and status.name() == 'MAINTENANCE'}">
+                维修中
+            </option>
+            <option value="SCRAPPED"
+                    th:selected="${status != null and status.name() == 'SCRAPPED'}">
+                已报废
+            </option>
+        </select>
+    </label>
+
+    <button type="submit">查询</button>
+    <a th:href="@{/assets}">重置</a>
+</form>
 
 <p>共 <strong th:text="${assetPage.totalElements}">0</strong> 项资产</p>
 
@@ -74,15 +150,27 @@
 
 <nav th:if="${assetPage.totalPages > 0}">
     <a th:if="${assetPage.hasPrevious()}"
-       th:href="@{/assets(page=${assetPage.number - 1})}">上一页</a>
+       th:href="@{/assets(
+           page=${assetPage.number - 1},
+           assetCode=${assetCode},
+           name=${name},
+           categoryId=${categoryId},
+           status=${status}
+       )}">上一页</a>
 
     <span>
-            第 <span th:text="${assetPage.number + 1}"></span> 页，
-            共 <span th:text="${assetPage.totalPages}"></span> 页
-        </span>
+        第 <span th:text="${assetPage.number + 1}"></span> 页，
+        共 <span th:text="${assetPage.totalPages}"></span> 页
+    </span>
 
     <a th:if="${assetPage.hasNext()}"
-       th:href="@{/assets(page=${assetPage.number + 1})}">下一页</a>
+       th:href="@{/assets(
+           page=${assetPage.number + 1},
+           assetCode=${assetCode},
+           name=${name},
+           categoryId=${categoryId},
+           status=${status}
+       )}">下一页</a>
 </nav>
 </body>
 </html>
