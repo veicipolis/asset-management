@@ -27,7 +27,7 @@ public class SecurityConfig {
                         .requestMatchers("/error", "/favicon.ico").permitAll()
                         .requestMatchers("/assets", "/assets/**")
                         .hasRole("ASSET_ADMIN")
-                        .anyRequest().authenticated()
+                        .requestMatchers("/employee/**").hasRole("EMPLOYEE").anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .defaultSuccessUrl("/", true)
