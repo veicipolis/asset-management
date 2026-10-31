@@ -17,6 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.server.ResponseStatusException;
+import com.veici.asset.dto.MyApplicationView;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -104,5 +108,45 @@ public class AssetApplicationService {
         );
 
         return application.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<MyApplicationView> findMyApplications(int page) {
+        var authentication = SecurityContextHolder.getContext()
+                .getAuthentication();
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication instanceof AnonymousAuthenticationToken) {
+            throw new AccessDeniedException("请先登录");
+        }
+
+        var user = userRepository.findByUsername(authentication.getName())
+                .orElseThrow(() -> new AccessDeniedException("账号不存在"));
+
+        boolean employee = user.isEnabled()
+                && user.getRoles().stream()
+                .anyMatch(role -> "EMPLOYEE".equals(role.getCode()));
+
+        if (!employee) {
+            throw new AccessDeniedException("没有查看员工申请的权限");
+        }
+
+        var pageable = PageRequest.of(
+                Math.max(page, 0),
+                20,
+                Sort.by(Sort.Direction.DESC, "createdAt", "id")
+        );
+
+        // 申请人固定为当前登录用户，不使用浏览器传来的用户编号。
+        return applicationRepository.findByApplicantId(user.getId(), pageable)
+                .map(application -> new MyApplicationView(
+                        application.getId(),
+                        application.getAsset().getAssetCode(),
+                        application.getAsset().getName(),
+                        application.getPurpose(),
+                        application.getStatus(),
+                        application.getCreatedAt()
+                ));
     }
 }

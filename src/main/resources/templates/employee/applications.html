@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>我的领用申请</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #243047;
+            background: #f7f9fc;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+            overflow-wrap: anywhere;
+        }
+        th { background: #edf2fa; }
+        a { color: #2563eb; }
+        nav {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 24px;
+        }
+    </style>
+</head>
+<body>
+<a th:href="@{/employee/assets}">查看可领用资产</a>
+<h1>我的领用申请</h1>
+
+<p>
+    共 <strong th:text="${applicationPage.totalElements}">0</strong> 条申请
+</p>
+
+<table>
+    <thead>
+    <tr>
+        <th>申请编号</th>
+        <th>资产编号</th>
+        <th>资产名称</th>
+        <th>用途</th>
+        <th>状态</th>
+        <th>提交时间</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:each="item : ${applicationPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.assetCode}"></td>
+        <td th:text="${item.assetName}"></td>
+        <td th:text="${item.purpose}"></td>
+        <td th:switch="${item.status.name()}">
+            <span th:case="'PENDING'">待审批</span>
+            <span th:case="'APPROVED'">已批准</span>
+            <span th:case="'REJECTED'">已驳回</span>
+            <span th:case="'ISSUED'">已发放</span>
+            <span th:case="'CANCELLED'">已取消</span>
+            <span th:case="*" th:text="${item.status}"></span>
+        </td>
+        <td th:text="${#temporals.format(
+                item.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+    </tr>
+
+    <tr th:if="${applicationPage.empty}">
+        <td colspan="6">你还没有提交领用申请</td>
+    </tr>
+    </tbody>
+</table>
+
+<nav th:if="${applicationPage.totalPages > 0}">
+    <a th:if="${applicationPage.hasPrevious()}"
+       th:href="@{/employee/applications(
+           page=${applicationPage.number - 1}
+       )}">上一页</a>
+
+    <span>
+        第 <span th:text="${applicationPage.number + 1}"></span> 页，
+        共 <span th:text="${applicationPage.totalPages}"></span> 页
+    </span>
+
+    <a th:if="${applicationPage.hasNext()}"
+       th:href="@{/employee/applications(
+           page=${applicationPage.number + 1}
+       )}">下一页</a>
+</nav>
+</body>
+</html>
