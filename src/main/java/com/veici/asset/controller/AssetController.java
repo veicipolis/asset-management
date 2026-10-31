@@ -10,6 +10,14 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import com.veici.asset.dto.AssetCreateForm;
+import com.veici.asset.service.AssetService;
+import jakarta.validation.Valid;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequiredArgsConstructor
@@ -17,6 +25,7 @@ public class AssetController {
 
     private final AssetRepository assetRepository;
     private final AssetCategoryRepository categoryRepository;
+    private final AssetService assetService;
 
     @GetMapping("/assets")
     public String list(
@@ -49,6 +58,46 @@ public class AssetController {
         model.addAttribute("status", status);
 
         return "assets/list";
+    }
+
+    @GetMapping("/assets/new")
+    public String createForm(Model model) {
+        model.addAttribute("form", new AssetCreateForm());
+        return prepareCreateForm(model);
+    }
+
+    @PostMapping("/assets")
+    public String create(
+            @Valid @ModelAttribute("form") AssetCreateForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        if (bindingResult.hasErrors()) {
+            return prepareCreateForm(model);
+        }
+
+        try {
+            assetService.create(form);
+        } catch (IllegalArgumentException exception) {
+            bindingResult.reject("asset.create", exception.getMessage());
+            return prepareCreateForm(model);
+        } catch (DataIntegrityViolationException exception) {
+            bindingResult.reject(
+                    "asset.conflict",
+                    "保存失败：资产编号可能重复，或关联数据已变化，请检查后重试"
+            );
+            return prepareCreateForm(model);
+        }
+
+        redirectAttributes.addFlashAttribute("successMessage", "资产新增成功");
+        return "redirect:/assets";
+    }
+
+    private String prepareCreateForm(Model model) {
+        model.addAttribute("categories",
+                categoryRepository.findAll(Sort.by("name")));
+        return "assets/create";
     }
 
     private String normalize(String value) {

@@ -58,6 +58,11 @@
 <body>
 <a th:href="@{/}">返回首页</a>
 <h1>资产列表</h1>
+<p th:if="${successMessage}"
+   th:text="${successMessage}"
+   style="color: #15803d;"></p>
+
+<p><a th:href="@{/assets/new}">新增资产</a></p>
 <form method="get" th:action="@{/assets}">
     <label>
         资产编号
