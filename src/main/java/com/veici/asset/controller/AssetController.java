@@ -18,6 +18,10 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.veici.asset.dto.AssetEditForm;
+import com.veici.asset.exception.AssetEditConflictException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Controller
 @RequiredArgsConstructor
@@ -60,6 +64,13 @@ public class AssetController {
         return "assets/list";
     }
 
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.strip();
+    }
+
     @GetMapping("/assets/new")
     public String createForm(Model model) {
         model.addAttribute("form", new AssetCreateForm());
@@ -100,10 +111,53 @@ public class AssetController {
         return "assets/create";
     }
 
-    private String normalize(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
+    @GetMapping("/assets/{id}/edit")
+    public String editForm(@PathVariable("id") Long id, Model model) {
+        model.addAttribute("form", assetService.getEditForm(id));
+        return prepareEditForm(id, model);
+    }
+
+    @PostMapping("/assets/{id}/edit")
+    public String update(
+            @PathVariable("id") Long id,
+            @Valid @ModelAttribute("form") AssetEditForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        if (bindingResult.hasErrors()) {
+            return prepareEditForm(id, model);
         }
-        return value.strip();
+
+        try {
+            assetService.update(id, form);
+        } catch (AssetEditConflictException
+                 | OptimisticLockingFailureException exception) {
+            bindingResult.reject(
+                    "asset.conflict",
+                    "资产已被其他操作修改，请点击“重新加载最新数据”后再编辑"
+            );
+        } catch (IllegalArgumentException exception) {
+            bindingResult.reject("asset.invalid", exception.getMessage());
+        } catch (DataIntegrityViolationException exception) {
+            bindingResult.reject(
+                    "asset.integrity",
+                    "保存失败，关联数据可能已变化，请重新加载后重试"
+            );
+        }
+
+        if (bindingResult.hasErrors()) {
+            return prepareEditForm(id, model);
+        }
+
+        redirectAttributes.addFlashAttribute("successMessage", "资产修改成功");
+        return "redirect:/assets";
+    }
+
+    private String prepareEditForm(Long id, Model model) {
+        model.addAttribute("assetId", id);
+        model.addAttribute("categories",
+                categoryRepository.findAll(Sort.by("name")));
+        return "assets/edit";
     }
 }

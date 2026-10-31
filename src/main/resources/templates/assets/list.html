@@ -129,6 +129,7 @@
         <th>原值（元）</th>
         <th>存放位置</th>
         <th>状态</th>
+        <th>操作</th>
     </tr>
     </thead>
     <tbody>
@@ -146,9 +147,15 @@
             <span th:case="'SCRAPPED'">已报废</span>
             <span th:case="*" th:text="${asset.status}"></span>
         </td>
+        <td>
+            <a th:if="${asset.status.name() != 'SCRAPPED'}"
+               th:href="@{/assets/{id}/edit(id=${asset.id})}">
+                编辑
+            </a>
+        </td>
     </tr>
     <tr th:if="${assetPage.empty}">
-        <td colspan="7">暂无资产数据</td>
+        <td colspan="8">暂无资产数据</td>
     </tr>
     </tbody>
 </table>

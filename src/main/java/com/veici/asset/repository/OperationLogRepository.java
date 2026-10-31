@@ -28,4 +28,29 @@ public class OperationLogRepository {
                 .setParameter("name", name)
                 .executeUpdate();
     }
+
+    public void recordAssetUpdated(
+            Long actorId,
+            Long assetId,
+            String beforeJson,
+            String afterJson) {
+
+        entityManager.createNativeQuery("""
+            INSERT INTO operation_log
+                (actor_id, log_category, action,
+                 target_type, target_id, result, details)
+            VALUES
+                (:actorId, 'BUSINESS', 'ASSET_UPDATE',
+                 'ASSET', :assetId, 'SUCCESS',
+                 JSON_OBJECT(
+                     'before', CAST(:beforeJson AS JSON),
+                     'after', CAST(:afterJson AS JSON)
+                 ))
+            """)
+                .setParameter("actorId", actorId)
+                .setParameter("assetId", assetId)
+                .setParameter("beforeJson", beforeJson)
+                .setParameter("afterJson", afterJson)
+                .executeUpdate();
+    }
 }
