@@ -53,4 +53,10 @@ public interface AssetApplicationRepository
         WHERE a.id = :id
         """)
     Optional<AssetApplication> findByIdForUpdate(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = "asset")
+    Page<AssetApplication> findByStatus(
+            ApplicationStatus status,
+            Pageable pageable
+    );
 }

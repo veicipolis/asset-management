@@ -58,4 +58,12 @@ public class Asset extends VersionedEntity {
             createdAt = LocalDateTime.now();
         }
     }
+
+    public void markInUse() {
+        if (status != AssetStatus.IDLE) {
+            throw new IllegalArgumentException("只有闲置资产可以发放");
+        }
+
+        status = AssetStatus.IN_USE;
+    }
 }

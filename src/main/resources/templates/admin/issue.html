@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>确认资产发放</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 720px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background: #f7f9fc;
+            color: #243047;
+        }
+        section {
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+        }
+        button {
+            padding: 10px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font: inherit;
+            cursor: pointer;
+        }
+        a { color: #2563eb; }
+    </style>
+</head>
+<body>
+<a th:href="@{/admin/issues}">返回待发放列表</a>
+<h1>确认资产发放</h1>
+
+<section>
+    <p>申请编号：<span th:text="${item.applicationId}"></span></p>
+    <p>领用人编号：<span th:text="${item.applicantId}"></span></p>
+    <p>资产编号：<span th:text="${item.assetCode}"></span></p>
+    <p>资产名称：<span th:text="${item.assetName}"></span></p>
+    <p>用途：<span th:text="${item.purpose}"></span></p>
+
+    <form th:if="${item.assetStatus.name() == 'IDLE'}"
+          method="post"
+          th:action="@{/admin/issues/{id}(id=${item.applicationId})}"
+          th:object="${form}">
+
+        <input type="hidden" th:field="*{applicationVersion}">
+        <input type="hidden" th:field="*{assetVersion}">
+
+        <p>请确认已向对应领用人交付资产，再完成发放登记。</p>
+        <button type="submit">确认已交付并登记发放</button>
+    </form>
+
+    <p th:unless="${item.assetStatus.name() == 'IDLE'}"
+       style="color: #b91c1c;">
+        资产当前不是闲置状态，暂时无法发放，请返回列表。
+    </p>
+</section>
+</body>
+</html>

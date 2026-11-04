@@ -115,4 +115,12 @@ public class AssetApplication extends VersionedEntity {
                 ? null : normalizedComment;
         approvedAt = LocalDateTime.now();
     }
+
+    public void markIssued() {
+        if (status != ApplicationStatus.APPROVED) {
+            throw new IllegalArgumentException("只有已批准的申请可以发放");
+        }
+
+        status = ApplicationStatus.ISSUED;
+    }
 }

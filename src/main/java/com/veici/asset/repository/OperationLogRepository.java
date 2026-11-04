@@ -107,4 +107,36 @@ public class OperationLogRepository {
                 .setParameter("afterVersion", afterVersion)
                 .executeUpdate();
     }
+
+    public void recordAssetIssued(
+            Long actorId,
+            Long loanId,
+            Long applicationId,
+            Long assetId,
+            Long borrowerId) {
+
+        entityManager.createNativeQuery("""
+            INSERT INTO operation_log
+                (actor_id, log_category, action,
+                 target_type, target_id, result, details)
+            VALUES
+                (:actorId, 'BUSINESS', 'ASSET_ISSUE',
+                 'ASSET_LOAN', :loanId, 'SUCCESS',
+                 JSON_OBJECT(
+                     'applicationId', :applicationId,
+                     'assetId', :assetId,
+                     'borrowerId', :borrowerId,
+                     'beforeAssetStatus', 'IDLE',
+                     'afterAssetStatus', 'IN_USE',
+                     'beforeApplicationStatus', 'APPROVED',
+                     'afterApplicationStatus', 'ISSUED'
+                 ))
+            """)
+                .setParameter("actorId", actorId)
+                .setParameter("loanId", loanId)
+                .setParameter("applicationId", applicationId)
+                .setParameter("assetId", assetId)
+                .setParameter("borrowerId", borrowerId)
+                .executeUpdate();
+    }
 }
