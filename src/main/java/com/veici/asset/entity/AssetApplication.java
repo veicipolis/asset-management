@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-
+import java.util.Objects;
 import java.time.LocalDateTime;
 
 @Getter
@@ -68,5 +68,51 @@ public class AssetApplication extends VersionedEntity {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
+    }
+
+    public void review(AppUser reviewer, boolean approved, String comment) {
+        if (reviewer == null || reviewer.getId() == null
+                || !reviewer.isEnabled()) {
+            throw new IllegalArgumentException("审批账号无效");
+        }
+
+        boolean hasApprovalRole = reviewer.getRoles().stream()
+                .anyMatch(role -> "DEPT_APPROVER".equals(role.getCode()));
+
+        if (!hasApprovalRole) {
+            throw new IllegalArgumentException("当前账号没有部门审批权限");
+        }
+
+        if (reviewer.getDepartmentId() == null
+                || !Objects.equals(departmentId, reviewer.getDepartmentId())) {
+            throw new IllegalArgumentException("只能审批本部门的申请");
+        }
+
+        if (Objects.equals(applicantId, reviewer.getId())) {
+            throw new IllegalArgumentException("不能审批自己提交的申请");
+        }
+
+        if (status != ApplicationStatus.PENDING) {
+            throw new IllegalArgumentException("申请已被处理，请刷新页面");
+        }
+
+        String normalizedComment = comment == null ? "" : comment.strip();
+
+        if (normalizedComment.length() > 200) {
+            throw new IllegalArgumentException("审批意见不能超过200个字符");
+        }
+
+        if (!approved && normalizedComment.isBlank()) {
+            throw new IllegalArgumentException("驳回申请时必须填写原因");
+        }
+
+        status = approved
+                ? ApplicationStatus.APPROVED
+                : ApplicationStatus.REJECTED;
+
+        approverId = reviewer.getId();
+        approvalComment = normalizedComment.isEmpty()
+                ? null : normalizedComment;
+        approvedAt = LocalDateTime.now();
     }
 }

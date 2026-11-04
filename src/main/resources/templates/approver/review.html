@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>审批领用申请</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 720px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background: #f7f9fc;
+            color: #243047;
+        }
+        form {
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+        }
+        label {
+            display: block;
+            margin-top: 16px;
+        }
+        select, textarea {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            font: inherit;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 24px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font: inherit;
+            cursor: pointer;
+        }
+        .error { color: #b91c1c; }
+        a { color: #2563eb; }
+    </style>
+</head>
+<body>
+<a th:href="@{/approver/applications}">返回待审批列表</a>
+<h1>审批领用申请</h1>
+
+<p>申请编号：<span th:text="${item.id}"></span></p>
+<p>申请人编号：<span th:text="${item.applicantId}"></span></p>
+<p>资产编号：<span th:text="${item.assetCode}"></span></p>
+<p>资产名称：<span th:text="${item.assetName}"></span></p>
+<p>用途：<span th:text="${item.purpose}"></span></p>
+
+<form method="post"
+      th:action="@{/approver/applications/{id}(id=${item.id})}"
+      th:object="${form}">
+
+    <input type="hidden" th:field="*{version}">
+
+    <div class="error" th:if="${#fields.hasAnyErrors()}">
+        <p th:each="error : ${#fields.allErrors()}"
+           th:text="${error}"></p>
+    </div>
+
+    <label for="decision">审批结果</label>
+    <select id="decision" th:field="*{decision}" required>
+        <option value="">请选择</option>
+        <option value="APPROVE">批准</option>
+        <option value="REJECT">驳回</option>
+    </select>
+
+    <label for="comment">审批意见（驳回时必填）</label>
+    <textarea id="comment" th:field="*{comment}"
+              rows="5" maxlength="200"></textarea>
+
+    <button type="submit">提交审批结果</button>
+</form>
+</body>
+</html>

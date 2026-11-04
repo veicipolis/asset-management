@@ -72,4 +72,39 @@ public class OperationLogRepository {
                 .setParameter("purpose", purpose)
                 .executeUpdate();
     }
+
+    public void recordApplicationReviewed(
+            Long actorId,
+            Long applicationId,
+            boolean approved,
+            String comment,
+            Long beforeVersion,
+            Long afterVersion) {
+
+        entityManager.createNativeQuery("""
+            INSERT INTO operation_log
+                (actor_id, log_category, action,
+                 target_type, target_id, result, details)
+            VALUES
+                (:actorId, 'BUSINESS', :action,
+                 'ASSET_APPLICATION', :applicationId, 'SUCCESS',
+                 JSON_OBJECT(
+                     'beforeStatus', 'PENDING',
+                     'afterStatus', :afterStatus,
+                     'comment', :comment,
+                     'beforeVersion', :beforeVersion,
+                     'afterVersion', :afterVersion
+                 ))
+            """)
+                .setParameter("actorId", actorId)
+                .setParameter("applicationId", applicationId)
+                .setParameter("action",
+                        approved ? "APPLICATION_APPROVE" : "APPLICATION_REJECT")
+                .setParameter("afterStatus",
+                        approved ? "APPROVED" : "REJECTED")
+                .setParameter("comment", comment == null ? "" : comment)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }
