@@ -39,4 +39,8 @@ public class AppUser extends VersionedEntity {
             inverseJoinColumns = @JoinColumn(name = "role_id")
     )
     private Set<AppRole> roles = new HashSet<>();
+
+    public void changeEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 }

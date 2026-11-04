@@ -194,4 +194,35 @@ public class OperationLogRepository {
                 .setParameter("assetId", assetId)
                 .executeUpdate();
     }
+
+    public void recordUserEnabledChanged(
+            Long actorId,
+            Long userId,
+            boolean beforeEnabled,
+            boolean afterEnabled,
+            Long beforeVersion,
+            Long afterVersion) {
+
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'ADMIN', 'USER_ENABLED_CHANGE',
+             'APP_USER', :userId, 'SUCCESS',
+             JSON_OBJECT(
+                 'beforeEnabled', :beforeEnabled,
+                 'afterEnabled', :afterEnabled,
+                 'beforeVersion', :beforeVersion,
+                 'afterVersion', :afterVersion
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("userId", userId)
+                .setParameter("beforeEnabled", beforeEnabled)
+                .setParameter("afterEnabled", afterEnabled)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }

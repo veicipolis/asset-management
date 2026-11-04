@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理</title>
+</head>
+<body>
+<h1>用户管理</h1>
+
+<p><a th:href="@{/}">返回首页</a></p>
+
+<p th:if="${success}" th:text="${success}" style="color: green;"></p>
+<p th:if="${error}" th:text="${error}" style="color: red;"></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+    <tr>
+        <th>用户编号</th>
+        <th>用户名</th>
+        <th>姓名</th>
+        <th>部门编号</th>
+        <th>状态</th>
+        <th>角色</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${userPage.empty}">
+        <td colspan="7">暂无用户</td>
+    </tr>
+
+    <tr th:each="item : ${userPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.username}"></td>
+        <td th:text="${item.displayName}"></td>
+        <td th:text="${item.departmentId == null ? '未分配' : item.departmentId}"></td>
+        <td th:text="${item.enabled ? '启用' : '停用'}"></td>
+        <td th:text="${#strings.isEmpty(item.roles) ? '未分配' : item.roles}"></td>
+
+        <td>
+            <form th:action="@{/system/users/{id}/enabled(id=${item.id})}"
+                  method="post"
+                  onsubmit="return confirm('确认变更该账号的启用状态？');">
+
+                <input type="hidden" name="version" th:value="${item.version}">
+                <input type="hidden" name="enabled" th:value="${!item.enabled}">
+
+                <button type="submit"
+                        th:text="${item.enabled ? '停用' : '启用'}">
+                </button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p>
+    <span th:text="|共 ${userPage.totalElements} 个用户|"></span>
+
+    <a th:if="${userPage.hasPrevious()}"
+       th:href="@{/system/users(page=${userPage.number - 1})}">上一页</a>
+
+    <span th:text="|第 ${userPage.number + 1} 页|"></span>
+
+    <a th:if="${userPage.hasNext()}"
+       th:href="@{/system/users(page=${userPage.number + 1})}">下一页</a>
+</p>
+</body>
+</html>
