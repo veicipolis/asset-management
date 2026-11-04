@@ -35,6 +35,8 @@ public class SecurityConfig {
                         .hasRole("ASSET_ADMIN")
                         .requestMatchers("/admin/returns", "/admin/returns/**")
                         .hasRole("ASSET_ADMIN")
+                        .requestMatchers("/admin/logs", "/admin/logs/**")
+                        .hasRole("ASSET_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

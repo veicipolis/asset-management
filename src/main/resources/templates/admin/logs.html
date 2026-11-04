@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>业务操作日志</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        form label { display: inline-block; margin: 6px; }
+        pre {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            max-width: 500px;
+        }
+    </style>
+</head>
+<body>
+<h1>业务操作日志</h1>
+
+<p><a th:href="@{/assets}">返回资产列表</a></p>
+
+<form th:action="@{/admin/logs}" method="get">
+    <label>
+        开始日期
+        <input type="date" name="startDate" th:value="${startDate}">
+    </label>
+
+    <label>
+        结束日期
+        <input type="date" name="endDate" th:value="${endDate}">
+    </label>
+
+    <label>
+        操作类型
+        <input type="text" name="action" maxlength="50"
+               placeholder="例如 RETURN_RECEIVE"
+               th:value="${action}">
+    </label>
+
+    <label>
+        对象类型
+        <select name="targetType">
+            <option value="">全部</option>
+            <option value="ASSET"
+                    th:selected="${targetType == 'ASSET'}">资产</option>
+            <option value="ASSET_APPLICATION"
+                    th:selected="${targetType == 'ASSET_APPLICATION'}">
+                领用申请
+            </option>
+            <option value="ASSET_LOAN"
+                    th:selected="${targetType == 'ASSET_LOAN'}">领用记录</option>
+            <option value="RETURN_APPLICATION"
+                    th:selected="${targetType == 'RETURN_APPLICATION'}">
+                归还申请
+            </option>
+        </select>
+    </label>
+
+    <label>
+        对象编号
+        <input type="number" name="targetId" min="1" th:value="${targetId}">
+    </label>
+
+    <button type="submit">查询</button>
+    <a th:href="@{/admin/logs}">重置</a>
+</form>
+
+<p th:if="${error}" th:text="${error}" style="color: red;"></p>
+
+<table>
+    <thead>
+    <tr>
+        <th>日志编号</th>
+        <th>操作人</th>
+        <th>操作时间</th>
+        <th>操作类型</th>
+        <th>对象类型</th>
+        <th>对象编号</th>
+        <th>结果</th>
+        <th>详情</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${logPage.empty}">
+        <td colspan="8">暂无符合条件的日志</td>
+    </tr>
+
+    <tr th:each="item : ${logPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.operator}"></td>
+        <td th:text="${#temporals.format(item.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+        <td th:text="${item.action}"></td>
+        <td th:text="${item.targetType}"></td>
+        <td th:text="${item.targetId}"></td>
+        <td th:text="${item.result}"></td>
+        <td>
+            <details th:if="${item.details != null}">
+                <summary>查看详情</summary>
+                <pre th:text="${item.details}"></pre>
+            </details>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p>
+    <span th:text="|共 ${logPage.totalElements} 条|"></span>
+
+    <a th:if="${logPage.hasPrevious()}"
+       th:href="@{/admin/logs(
+           page=${logPage.number - 1},
+           startDate=${startDate},
+           endDate=${endDate},
+           action=${action},
+           targetType=${targetType},
+           targetId=${targetId}
+       )}">上一页</a>
+
+    <span th:text="|第 ${logPage.number + 1} 页|"></span>
+
+    <a th:if="${logPage.hasNext()}"
+       th:href="@{/admin/logs(
+           page=${logPage.number + 1},
+           startDate=${startDate},
+           endDate=${endDate},
+           action=${action},
+           targetType=${targetType},
+           targetId=${targetId}
+       )}">下一页</a>
+</p>
+</body>
+</html>
