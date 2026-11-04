@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>归还接收</title>
+</head>
+<body>
+<h1>待接收的归还申请</h1>
+
+<p>
+    <a th:href="@{/assets}">资产列表</a>
+    |
+    <a th:href="@{/admin/issues}">待发放申请</a>
+</p>
+
+<p th:if="${success}" th:text="${success}" style="color: green;"></p>
+<p th:if="${error}" th:text="${error}" style="color: red;"></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+    <tr>
+        <th>归还申请编号</th>
+        <th>领用编号</th>
+        <th>申请人编号</th>
+        <th>资产编号</th>
+        <th>资产名称</th>
+        <th>申请时间</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${returnPage.empty}">
+        <td colspan="7">暂无待接收的归还申请</td>
+    </tr>
+
+    <tr th:each="item : ${returnPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.loanId}"></td>
+        <td th:text="${item.applicantId}"></td>
+        <td th:text="${item.assetCode}"></td>
+        <td th:text="${item.assetName}"></td>
+        <td th:text="${#temporals.format(item.createdAt, 'yyyy-MM-dd HH:mm')}"></td>
+        <td>
+            <form th:action="@{/admin/returns/{id}/receive(id=${item.id})}"
+                  method="post"
+                  onsubmit="return confirm('确认已收到该资产，并将其恢复为闲置？');">
+                <input type="hidden" name="version" th:value="${item.version}">
+                <button type="submit">确认接收</button>
+            </form>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p>
+    <a th:if="${returnPage.hasPrevious()}"
+       th:href="@{/admin/returns(page=${returnPage.number - 1})}">上一页</a>
+
+    <span th:text="|第 ${returnPage.number + 1} 页|"></span>
+
+    <a th:if="${returnPage.hasNext()}"
+       th:href="@{/admin/returns(page=${returnPage.number + 1})}">下一页</a>
+</p>
+</body>
+</html>

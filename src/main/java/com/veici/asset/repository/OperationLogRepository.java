@@ -139,4 +139,59 @@ public class OperationLogRepository {
                 .setParameter("borrowerId", borrowerId)
                 .executeUpdate();
     }
+
+    public void recordReturnRequested(
+            Long actorId,
+            Long returnApplicationId,
+            Long loanId,
+            Long assetId) {
+
+        entityManager.createNativeQuery("""
+            INSERT INTO operation_log
+                (actor_id, log_category, action,
+                 target_type, target_id, result, details)
+            VALUES
+                (:actorId, 'BUSINESS', 'RETURN_REQUEST',
+                 'RETURN_APPLICATION', :returnApplicationId, 'SUCCESS',
+                 JSON_OBJECT(
+                     'loanId', :loanId,
+                     'assetId', :assetId,
+                     'status', 'PENDING'
+                 ))
+            """)
+                .setParameter("actorId", actorId)
+                .setParameter("returnApplicationId", returnApplicationId)
+                .setParameter("loanId", loanId)
+                .setParameter("assetId", assetId)
+                .executeUpdate();
+    }
+
+    public void recordReturnReceived(
+            Long actorId,
+            Long returnApplicationId,
+            Long loanId,
+            Long assetId) {
+
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'BUSINESS', 'RETURN_RECEIVE',
+             'RETURN_APPLICATION', :returnApplicationId, 'SUCCESS',
+             JSON_OBJECT(
+                 'loanId', :loanId,
+                 'assetId', :assetId,
+                 'beforeStatus', 'PENDING',
+                 'afterStatus', 'COMPLETED',
+                 'beforeAssetStatus', 'IN_USE',
+                 'afterAssetStatus', 'IDLE'
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("returnApplicationId", returnApplicationId)
+                .setParameter("loanId", loanId)
+                .setParameter("assetId", assetId)
+                .executeUpdate();
+    }
 }

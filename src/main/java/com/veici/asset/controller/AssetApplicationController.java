@@ -58,7 +58,6 @@ public class AssetApplicationController {
                 "successMessage", "领用申请已提交，等待部门审批");
         return "redirect:/employee/assets";
     }
-
     private String prepareForm(Long id, Model model) {
         var asset = assetRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(

@@ -66,4 +66,11 @@ public class Asset extends VersionedEntity {
 
         status = AssetStatus.IN_USE;
     }
+
+    public void markReturned() {
+        if (status != AssetStatus.IN_USE) {
+            throw new IllegalArgumentException("只有使用中的资产可以接收归还");
+        }
+        status = AssetStatus.IDLE;
+    }
 }

@@ -33,6 +33,8 @@ public class SecurityConfig {
                         .hasRole("DEPT_APPROVER")
                         .requestMatchers("/admin/issues", "/admin/issues/**")
                         .hasRole("ASSET_ADMIN")
+                        .requestMatchers("/admin/returns", "/admin/returns/**")
+                        .hasRole("ASSET_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form

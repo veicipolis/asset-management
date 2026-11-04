@@ -70,4 +70,20 @@ public class AssetLoan extends VersionedEntity {
         loan.issuedAt = LocalDateTime.now();
         return loan;
     }
+
+    public void receiveReturn(Long receiverId, LocalDateTime receivedAt) {
+        Objects.requireNonNull(receiverId, "接收人不能为空");
+        Objects.requireNonNull(receivedAt, "接收时间不能为空");
+
+        if (returnedAt != null || receivedBy != null) {
+            throw new IllegalArgumentException("该领用记录已经接收归还");
+        }
+
+        if (issuedAt == null || receivedAt.isBefore(issuedAt)) {
+            throw new IllegalArgumentException("接收时间不能早于发放时间");
+        }
+
+        returnedAt = receivedAt;
+        receivedBy = receiverId;
+    }
 }
