@@ -21,6 +21,11 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.server.ResponseStatusException;
+import com.veici.asset.dto.UserCreateForm;
+import com.veici.asset.repository.DepartmentRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import com.veici.asset.entity.Department;
+import java.util.List;
 
 import java.util.Objects;
 
@@ -34,6 +39,8 @@ public class UserAdminService {
     private final AppUserRepository userRepository;
     private final AppRoleRepository roleRepository;
     private final OperationLogRepository logRepository;
+    private final DepartmentRepository departmentRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public Page<UserAdminView> findUsers(int page) {
@@ -136,5 +143,52 @@ public class UserAdminService {
                 beforeVersion,
                 target.getVersion()
         );
+    }
+
+    @Transactional
+    public Long create(@NotNull @Valid UserCreateForm form) {
+        // 与账号启停、角色修改保持一致的加锁顺序。
+        roleRepository.findByCodeForUpdate("SYSTEM_ADMIN")
+                .orElseThrow(() ->
+                        new IllegalStateException("缺少系统管理员角色配置"));
+
+        var operator = requireSystemAdmin();
+
+        if (userRepository.existsByUsername(form.getUsername())) {
+            throw new IllegalArgumentException("用户名已存在");
+        }
+
+        if (form.getDepartmentId() != null
+                && !departmentRepository.existsById(form.getDepartmentId())) {
+            throw new IllegalArgumentException("所选部门不存在，请重新选择");
+        }
+
+        // 密码保持原样参与哈希，不执行 trim 或 strip。
+        String passwordHash = passwordEncoder.encode(form.getPassword());
+
+        var user = AppUser.create(
+                form.getUsername(),
+                form.getDisplayName(),
+                form.getDepartmentId(),
+                passwordHash
+        );
+
+        userRepository.saveAndFlush(user);
+
+        logRepository.recordUserCreated(
+                operator.getId(),
+                user.getId(),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getDepartmentId()
+        );
+
+        return user.getId();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Department> findDepartments() {
+        requireSystemAdmin();
+        return departmentRepository.findAllByOrderByNameAsc();
     }
 }

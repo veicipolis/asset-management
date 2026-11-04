@@ -10,6 +10,8 @@ import jakarta.validation.Valid;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import com.veici.asset.dto.UserCreateForm;
+import org.springframework.dao.DataIntegrityViolationException;
 
 @Controller
 @RequiredArgsConstructor
@@ -53,5 +55,43 @@ public class UserAdminController {
         }
 
         return "redirect:/system/users";
+    }
+
+    @GetMapping("/new")
+    public String createForm(Model model) {
+        model.addAttribute("form", new UserCreateForm());
+        model.addAttribute("departments", userAdminService.findDepartments());
+        return "system/user-create";
+    }
+
+    @PostMapping
+    public String create(
+            @Valid @ModelAttribute("form") UserCreateForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        if (!bindingResult.hasErrors()) {
+            try {
+                userAdminService.create(form);
+                redirectAttributes.addFlashAttribute(
+                        "success", "用户创建成功，请按需要分配角色");
+                return "redirect:/system/users";
+            } catch (IllegalArgumentException ex) {
+                bindingResult.reject("createFailed", ex.getMessage());
+            } catch (DataIntegrityViolationException ex) {
+                bindingResult.reject(
+                        "createFailed",
+                        "创建失败，用户名可能已存在或部门信息发生变化，请检查后重试"
+                );
+            }
+        }
+
+        // 校验失败后要求重新输入密码。
+        form.setPassword(null);
+        form.setConfirmPassword(null);
+
+        model.addAttribute("departments", userAdminService.findDepartments());
+        return "system/user-create";
     }
 }

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>新增用户</title>
+    <style>
+        .error { color: red; }
+        label { display: inline-block; width: 110px; }
+    </style>
+</head>
+<body>
+<h1>新增用户</h1>
+
+<p><a th:href="@{/system/users}">返回用户列表</a></p>
+<p>新账号默认启用，暂不分配角色。</p>
+
+<form th:action="@{/system/users}" th:object="${form}" method="post">
+
+    <ul class="error" th:if="${#fields.hasAnyErrors()}">
+        <li th:each="message : ${#fields.allErrors()}"
+            th:text="${message}"></li>
+    </ul>
+
+    <p>
+        <label for="username">用户名</label>
+        <input id="username" type="text" th:field="*{username}"
+               minlength="3" maxlength="50"
+               pattern="[a-zA-Z0-9_.-]+"
+               autocomplete="off" required>
+    </p>
+
+    <p>
+        <label for="displayName">姓名</label>
+        <input id="displayName" type="text" th:field="*{displayName}"
+               maxlength="100" required>
+    </p>
+
+    <p>
+        <label for="departmentId">所属部门</label>
+        <select id="departmentId" th:field="*{departmentId}">
+            <option value="">暂不分配</option>
+            <option th:each="department : ${departments}"
+                    th:value="${department.id}"
+                    th:text="${department.name}">
+            </option>
+        </select>
+    </p>
+
+    <p>
+        <label for="password">初始密码</label>
+        <input id="password" name="password" type="password"
+               minlength="12" maxlength="72"
+               autocomplete="new-password" required>
+    </p>
+
+    <p>
+        <label for="confirmPassword">确认密码</label>
+        <input id="confirmPassword" name="confirmPassword" type="password"
+               minlength="12" maxlength="72"
+               autocomplete="new-password" required>
+    </p>
+
+    <p>密码至少12个字符，UTF-8编码长度不超过72字节。</p>
+    <p>提交失败时，请重新输入两次密码。</p>
+
+    <button type="submit">创建用户</button>
+</form>
+</body>
+</html>

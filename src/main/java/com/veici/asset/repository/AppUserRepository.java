@@ -34,4 +34,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
           )
         """)
     long countEnabledSystemAdmins();
+
+    boolean existsByUsername(String username);
 }

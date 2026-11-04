@@ -43,4 +43,28 @@ public class AppUser extends VersionedEntity {
     public void changeEnabled(boolean enabled) {
         this.enabled = enabled;
     }
+
+    public static AppUser create(
+            String username,
+            String displayName,
+            Long departmentId,
+            String passwordHash) {
+
+        if (username == null || username.isBlank()
+                || displayName == null || displayName.isBlank()
+                || passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("用户信息不完整");
+        }
+
+        var user = new AppUser();
+        user.username = username;
+        user.displayName = displayName.strip();
+        user.departmentId = departmentId;
+        user.passwordHash = passwordHash;
+        user.enabled = true;
+        user.createdAt = LocalDateTime.now();
+
+        // 不默认赋予任何角色。
+        return user;
+    }
 }
