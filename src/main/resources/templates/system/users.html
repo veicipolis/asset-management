@@ -39,6 +39,7 @@
         <td th:text="${#strings.isEmpty(item.roles) ? '未分配' : item.roles}"></td>
 
         <td>
+            <a th:href="@{/system/users/{id}/edit(id=${item.id})}">编辑</a>
             <form th:action="@{/system/users/{id}/enabled(id=${item.id})}"
                   method="post"
                   onsubmit="return confirm('确认变更该账号的启用状态？');">

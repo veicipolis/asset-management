@@ -254,4 +254,45 @@ public class OperationLogRepository {
                 .setParameter("departmentId", departmentId)
                 .executeUpdate();
     }
+
+    public void recordUserProfileUpdated(
+            Long actorId,
+            Long userId,
+            String beforeName,
+            String afterName,
+            Long beforeDepartmentId,
+            Long afterDepartmentId,
+            Long beforeVersion,
+            Long afterVersion) {
+
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'ADMIN', 'USER_PROFILE_UPDATE',
+             'APP_USER', :userId, 'SUCCESS',
+             JSON_OBJECT(
+                 'before', JSON_OBJECT(
+                     'displayName', :beforeName,
+                     'departmentId', :beforeDepartmentId,
+                     'version', :beforeVersion
+                 ),
+                 'after', JSON_OBJECT(
+                     'displayName', :afterName,
+                     'departmentId', :afterDepartmentId,
+                     'version', :afterVersion
+                 )
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("userId", userId)
+                .setParameter("beforeName", beforeName)
+                .setParameter("afterName", afterName)
+                .setParameter("beforeDepartmentId", beforeDepartmentId)
+                .setParameter("afterDepartmentId", afterDepartmentId)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }

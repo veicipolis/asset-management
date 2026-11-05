@@ -67,4 +67,23 @@ public class AppUser extends VersionedEntity {
         // 不默认赋予任何角色。
         return user;
     }
+
+    public void updateProfile(String displayName, Long departmentId) {
+        if (displayName == null || displayName.isBlank()) {
+            throw new IllegalArgumentException("姓名不能为空");
+        }
+
+        String normalizedName = displayName.strip();
+
+        if (normalizedName.length() > 100) {
+            throw new IllegalArgumentException("姓名不能超过100个字符");
+        }
+
+        if (departmentId != null && departmentId <= 0) {
+            throw new IllegalArgumentException("部门编号无效");
+        }
+
+        this.displayName = normalizedName;
+        this.departmentId = departmentId;
+    }
 }

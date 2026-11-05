@@ -12,6 +12,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.veici.asset.dto.UserCreateForm;
 import org.springframework.dao.DataIntegrityViolationException;
+import com.veici.asset.dto.UserEditForm;
 
 @Controller
 @RequiredArgsConstructor
@@ -93,5 +94,44 @@ public class UserAdminController {
 
         model.addAttribute("departments", userAdminService.findDepartments());
         return "system/user-create";
+    }
+
+    @GetMapping("/{id}/edit")
+    public String editForm(@PathVariable Long id, Model model) {
+        model.addAttribute("form", userAdminService.getEditForm(id));
+        model.addAttribute("userId", id);
+        model.addAttribute("departments", userAdminService.findDepartments());
+        return "system/user-edit";
+    }
+
+    @PostMapping("/{id}/edit")
+    public String updateProfile(
+            @PathVariable Long id,
+            @Valid @ModelAttribute("form") UserEditForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        if (!bindingResult.hasErrors()) {
+            try {
+                userAdminService.updateProfile(id, form);
+                redirectAttributes.addFlashAttribute(
+                        "success", "用户姓名与部门已更新");
+                return "redirect:/system/users";
+            } catch (IllegalArgumentException ex) {
+                bindingResult.reject("updateFailed", ex.getMessage());
+            } catch (OptimisticLockingFailureException ex) {
+                bindingResult.reject(
+                        "updateFailed", "用户信息已发生变化，请重新打开编辑页面");
+            } catch (DataIntegrityViolationException ex) {
+                bindingResult.reject(
+                        "updateFailed", "保存失败，部门信息可能发生变化，请重新检查");
+            }
+        }
+
+        // 保留本次输入和旧版本号，不自动替换为数据库中的新版本。
+        model.addAttribute("userId", id);
+        model.addAttribute("departments", userAdminService.findDepartments());
+        return "system/user-edit";
     }
 }

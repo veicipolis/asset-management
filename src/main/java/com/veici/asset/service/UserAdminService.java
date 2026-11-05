@@ -26,6 +26,7 @@ import com.veici.asset.repository.DepartmentRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import com.veici.asset.entity.Department;
 import java.util.List;
+import com.veici.asset.dto.UserEditForm;
 
 import java.util.Objects;
 
@@ -190,5 +191,72 @@ public class UserAdminService {
     public List<Department> findDepartments() {
         requireSystemAdmin();
         return departmentRepository.findAllByOrderByNameAsc();
+    }
+
+    @Transactional(readOnly = true)
+    public UserEditForm getEditForm(@NotNull @Positive Long userId) {
+        requireSystemAdmin();
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "用户不存在"));
+
+        var form = new UserEditForm();
+        form.setVersion(user.getVersion());
+        form.setDisplayName(user.getDisplayName());
+        form.setDepartmentId(user.getDepartmentId());
+        return form;
+    }
+
+    @Transactional
+    public void updateProfile(
+            @NotNull @Positive Long userId,
+            @NotNull @Valid UserEditForm form) {
+
+        roleRepository.findByCodeForUpdate("SYSTEM_ADMIN")
+                .orElseThrow(() ->
+                        new IllegalStateException("缺少系统管理员角色配置"));
+
+        var operator = requireSystemAdmin();
+
+        var target = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "用户不存在"));
+
+        if (!Objects.equals(target.getVersion(), form.getVersion())) {
+            throw new IllegalArgumentException(
+                    "用户信息已发生变化，请重新打开编辑页面");
+        }
+
+        if (form.getDepartmentId() != null
+                && !departmentRepository.existsById(form.getDepartmentId())) {
+            throw new IllegalArgumentException("所选部门不存在，请重新选择");
+        }
+
+        String newName = form.getDisplayName().strip();
+
+        if (Objects.equals(target.getDisplayName(), newName)
+                && Objects.equals(
+                target.getDepartmentId(), form.getDepartmentId())) {
+            throw new IllegalArgumentException("姓名和部门均未发生变化");
+        }
+
+        String beforeName = target.getDisplayName();
+        Long beforeDepartmentId = target.getDepartmentId();
+        Long beforeVersion = target.getVersion();
+
+        target.updateProfile(newName, form.getDepartmentId());
+        userRepository.flush();
+
+        logRepository.recordUserProfileUpdated(
+                operator.getId(),
+                target.getId(),
+                beforeName,
+                target.getDisplayName(),
+                beforeDepartmentId,
+                target.getDepartmentId(),
+                beforeVersion,
+                target.getVersion()
+        );
     }
 }

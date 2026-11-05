@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>编辑用户</title>
+</head>
+<body>
+<h1>编辑用户</h1>
+
+<p th:text="|用户编号：${userId}|"></p>
+<p><a th:href="@{/system/users}">返回用户列表</a></p>
+
+<form th:action="@{/system/users/{id}/edit(id=${userId})}"
+      th:object="${form}"
+      method="post">
+
+    <input type="hidden" th:field="*{version}">
+
+    <ul th:if="${#fields.hasAnyErrors()}" style="color: red;">
+        <li th:each="message : ${#fields.allErrors()}"
+            th:text="${message}"></li>
+    </ul>
+
+    <p>
+        <label for="displayName">姓名</label>
+        <input id="displayName" type="text"
+               th:field="*{displayName}" maxlength="100" required>
+    </p>
+
+    <p>
+        <label for="departmentId">所属部门</label>
+        <select id="departmentId" th:field="*{departmentId}">
+            <option value="">暂不分配</option>
+            <option th:each="department : ${departments}"
+                    th:value="${department.id}"
+                    th:text="${department.name}">
+            </option>
+        </select>
+    </p>
+
+    <p>修改所属部门不会改变历史申请中保存的部门信息。</p>
+
+    <button type="submit">保存修改</button>
+</form>
+</body>
+</html>
