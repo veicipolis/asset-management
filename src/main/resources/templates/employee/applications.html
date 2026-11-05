@@ -36,6 +36,8 @@
 <body>
 <a th:href="@{/employee/assets}">查看可领用资产</a>
 <h1>我的领用申请</h1>
+<p th:if="${success}" th:text="${success}" style="color: green;"></p>
+<p th:if="${error}" th:text="${error}" style="color: red;"></p>
 
 <p>
     共 <strong th:text="${applicationPage.totalElements}">0</strong> 条申请
@@ -50,6 +52,7 @@
         <th>用途</th>
         <th>状态</th>
         <th>提交时间</th>
+        <th>操作</th>
     </tr>
     </thead>
     <tbody>
@@ -68,10 +71,21 @@
         </td>
         <td th:text="${#temporals.format(
                 item.createdAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+        <td>
+            <form th:if="${item.status.name() == 'PENDING'
+                   or item.status.name() == 'APPROVED'}"
+                  th:action="@{/employee/applications/{id}/cancel(id=${item.id})}"
+                  method="post"
+                  onsubmit="return confirm('确认取消这条领用申请？');">
+
+                <input type="hidden" name="version" th:value="${item.version}">
+                <button type="submit">取消申请</button>
+            </form>
+        </td>
     </tr>
 
     <tr th:if="${applicationPage.empty}">
-        <td colspan="6">你还没有提交领用申请</td>
+        <td colspan="7">你还没有提交领用申请</td>
     </tr>
     </tbody>
 </table>

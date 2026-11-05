@@ -395,5 +395,32 @@ public class OperationLogRepository {
                 .executeUpdate();
     }
 
+    public void recordApplicationCancelled(
+            Long actorId,
+            Long applicationId,
+            String beforeStatus,
+            Long beforeVersion,
+            Long afterVersion) {
 
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'BUSINESS', 'APPLICATION_CANCEL',
+             'ASSET_APPLICATION', :applicationId, 'SUCCESS',
+             JSON_OBJECT(
+                 'beforeStatus', :beforeStatus,
+                 'afterStatus', 'CANCELLED',
+                 'beforeVersion', :beforeVersion,
+                 'afterVersion', :afterVersion
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("applicationId", applicationId)
+                .setParameter("beforeStatus", beforeStatus)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }

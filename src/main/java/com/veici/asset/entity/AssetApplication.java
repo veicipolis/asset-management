@@ -123,4 +123,15 @@ public class AssetApplication extends VersionedEntity {
 
         status = ApplicationStatus.ISSUED;
     }
+
+    public void cancel() {
+        if (status != ApplicationStatus.PENDING
+                && status != ApplicationStatus.APPROVED) {
+            throw new IllegalArgumentException(
+                    "只有待审批或待发放的领用申请可以取消");
+        }
+
+        status = ApplicationStatus.CANCELLED;
+        cancelledAt = LocalDateTime.now();
+    }
 }

@@ -142,6 +142,7 @@ public class AssetApplicationService {
         return applicationRepository.findByApplicantId(user.getId(), pageable)
                 .map(application -> new MyApplicationView(
                         application.getId(),
+                        application.getVersion(),
                         application.getAsset().getAssetCode(),
                         application.getAsset().getName(),
                         application.getPurpose(),
