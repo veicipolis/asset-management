@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>资产类别维护</title>
+</head>
+<body>
+<h1 th:text="${categoryId == null ? '新增资产类别' : '编辑资产类别'}"></h1>
+
+<p><a th:href="@{/system/categories}">返回类别列表</a></p>
+
+<form th:action="${categoryId == null}
+        ? @{/system/categories}
+        : @{/system/categories/{id}/edit(id=${categoryId})}"
+      th:object="${form}"
+      method="post">
+
+    <input th:if="${categoryId != null}"
+           type="hidden" th:field="*{version}">
+
+    <ul th:if="${#fields.hasAnyErrors()}" style="color: red;">
+        <li th:each="message : ${#fields.allErrors()}"
+            th:text="${message}"></li>
+    </ul>
+
+    <p>
+        <label for="name">类别名称</label>
+        <input id="name" type="text" th:field="*{name}"
+               maxlength="100" required>
+    </p>
+
+    <button type="submit">保存</button>
+</form>
+</body>
+</html>

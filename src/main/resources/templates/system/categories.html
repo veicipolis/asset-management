@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>资产类别管理</title>
+</head>
+<body>
+<h1>资产类别管理</h1>
+
+<p>
+    <a th:href="@{/system/categories/new}">新增类别</a>
+    |
+    <a th:href="@{/system/users}">用户管理</a>
+    |
+    <a th:href="@{/system/departments}">部门管理</a>
+</p>
+
+<p th:if="${success}" th:text="${success}" style="color: green;"></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+    <tr>
+        <th>类别编号</th>
+        <th>类别名称</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${categoryPage.empty}">
+        <td colspan="3">暂无资产类别</td>
+    </tr>
+
+    <tr th:each="item : ${categoryPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.name}"></td>
+        <td>
+            <a th:href="@{/system/categories/{id}/edit(id=${item.id})}">
+                编辑
+            </a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p>
+    <span th:text="|共 ${categoryPage.totalElements} 个类别|"></span>
+
+    <a th:if="${categoryPage.hasPrevious()}"
+       th:href="@{/system/categories(page=${categoryPage.number - 1})}">
+        上一页
+    </a>
+
+    <span th:text="|第 ${categoryPage.number + 1} 页|"></span>
+
+    <a th:if="${categoryPage.hasNext()}"
+       th:href="@{/system/categories(page=${categoryPage.number + 1})}">
+        下一页
+    </a>
+</p>
+</body>
+</html>
