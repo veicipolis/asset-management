@@ -1,20 +1,97 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>固定资产管理系统</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            color: #243047;
+            background: #f7f9fc;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        section {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        h2 { margin-top: 0; }
+        li { margin: 12px 0; }
+        a { color: #2563eb; }
+        button {
+            cursor: pointer;
+            padding: 8px 14px;
+        }
+    </style>
 </head>
 <body>
-<h1>企业固定资产全生命周期管理系统</h1>
-<p>系统已启动，欢迎使用。</p>
+<header>
+    <p>当前账号：<strong th:text="${username}"></strong></p>
 
-<h2>计划实现的功能</h2>
-<ul>
-    <li>资产建档与查询</li>
-    <li>领用申请与审批</li>
-    <li>资产归还</li>
-    <li>维修与报废</li>
-</ul>
+    <form th:action="@{/logout}" method="post">
+        <button type="submit">退出登录</button>
+    </form>
+</header>
+
+<h1>企业固定资产管理系统</h1>
+<p>请选择需要办理的业务。</p>
+
+<p th:if="${!hasNavigation}">
+    当前账号尚未分配业务角色，请联系系统管理员。
+</p>
+
+<div class="cards">
+    <section th:if="${employee}">
+        <h2>我的资产业务</h2>
+        <ul>
+            <li><a th:href="@{/employee/assets}">查看可领用资产</a></li>
+            <li><a th:href="@{/employee/applications}">我的领用申请</a></li>
+            <li><a th:href="@{/employee/loans}">我的领用与归还</a></li>
+        </ul>
+    </section>
+
+    <section th:if="${approver}">
+        <h2>部门审批</h2>
+        <ul>
+            <li><a th:href="@{/approver/applications}">待审批领用申请</a></li>
+        </ul>
+    </section>
+
+    <section th:if="${assetAdmin}">
+        <h2>资产管理</h2>
+        <ul>
+            <li><a th:href="@{/assets}">资产列表与建档</a></li>
+            <li><a th:href="@{/admin/issues}">资产发放</a></li>
+            <li><a th:href="@{/admin/returns}">归还接收</a></li>
+            <li><a th:href="@{/admin/logs}">业务操作日志</a></li>
+        </ul>
+    </section>
+
+    <section th:if="${systemAdmin}">
+        <h2>系统管理</h2>
+        <ul>
+            <li><a th:href="@{/system/users}">用户与角色管理</a></li>
+            <li><a th:href="@{/system/departments}">部门管理</a></li>
+            <li><a th:href="@{/system/categories}">资产类别管理</a></li>
+            <li><a th:href="@{/system/logs}">管理操作日志</a></li>
+        </ul>
+    </section>
+</div>
 </body>
 </html>
