@@ -72,4 +72,13 @@ public class ReturnApplication extends VersionedEntity {
         status = ReturnStatus.COMPLETED;
         completedAt = receivedAt;
     }
+
+    public void cancel() {
+        if (status != ReturnStatus.PENDING) {
+            throw new IllegalArgumentException("只有待接收的归还申请可以取消");
+        }
+
+        status = ReturnStatus.CANCELLED;
+        cancelledAt = LocalDateTime.now();
+    }
 }

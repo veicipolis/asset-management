@@ -37,4 +37,7 @@ public interface ReturnApplicationRepository
         WHERE r.id = :id
         """)
     Optional<ReturnApplication> findByIdForUpdate(@Param("id") Long id);
+
+    Optional<ReturnApplication> findByLoan_IdAndStatus(
+            Long loanId, ReturnStatus status);
 }

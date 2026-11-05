@@ -423,4 +423,37 @@ public class OperationLogRepository {
                 .setParameter("afterVersion", afterVersion)
                 .executeUpdate();
     }
+
+    public void recordReturnCancelled(
+            Long actorId,
+            Long returnApplicationId,
+            Long loanId,
+            Long assetId,
+            Long beforeVersion,
+            Long afterVersion) {
+
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'BUSINESS', 'RETURN_CANCEL',
+             'RETURN_APPLICATION', :returnApplicationId, 'SUCCESS',
+             JSON_OBJECT(
+                 'loanId', :loanId,
+                 'assetId', :assetId,
+                 'beforeStatus', 'PENDING',
+                 'afterStatus', 'CANCELLED',
+                 'beforeVersion', :beforeVersion,
+                 'afterVersion', :afterVersion
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("returnApplicationId", returnApplicationId)
+                .setParameter("loanId", loanId)
+                .setParameter("assetId", assetId)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }

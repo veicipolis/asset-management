@@ -8,6 +8,8 @@ public record MyLoanView(
         String assetName,
         LocalDateTime issuedAt,
         LocalDateTime returnedAt,
-        boolean returnPending
+        boolean returnPending,
+        Long returnApplicationId,
+        Long returnVersion
 ) {
 }

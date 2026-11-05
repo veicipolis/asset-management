@@ -130,14 +130,20 @@ public class ReturnApplicationService {
         );
 
         return loanRepository.findByBorrowerId(user.getId(), pageable)
-                .map(loan -> new MyLoanView(
-                        loan.getId(),
-                        loan.getAsset().getAssetCode(),
-                        loan.getAsset().getName(),
-                        loan.getIssuedAt(),
-                        loan.getReturnedAt(),
-                        returnRepository.existsByLoan_IdAndStatus(
-                                loan.getId(), ReturnStatus.PENDING)
-                ));
+                .map(loan -> {
+                    var pending = returnRepository.findByLoan_IdAndStatus(
+                            loan.getId(), ReturnStatus.PENDING);
+
+                    return new MyLoanView(
+                            loan.getId(),
+                            loan.getAsset().getAssetCode(),
+                            loan.getAsset().getName(),
+                            loan.getIssuedAt(),
+                            loan.getReturnedAt(),
+                            pending.isPresent(),
+                            pending.map(item -> item.getId()).orElse(null),
+                            pending.map(item -> item.getVersion()).orElse(null)
+                    );
+                });
     }
 }

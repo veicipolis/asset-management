@@ -42,9 +42,18 @@
         <td>
             <span th:if="${item.returnedAt != null}">已归还</span>
 
-            <span th:if="${item.returnedAt == null and item.returnPending}">
-                待管理员接收
-            </span>
+            <div th:if="${item.returnedAt == null and item.returnPending}">
+                <span>待管理员接收</span>
+
+                <form th:action="@{/employee/loans/returns/{id}/cancel(
+                id=${item.returnApplicationId})}"
+                      method="post"
+                      onsubmit="return confirm('确认取消归还申请？资产将继续由你领用。');">
+
+                    <input type="hidden" name="version" th:value="${item.returnVersion}">
+                    <button type="submit">取消归还申请</button>
+                </form>
+            </div>
 
             <form th:if="${item.returnedAt == null and !item.returnPending}"
                   th:action="@{/employee/loans/{id}/return(id=${item.id})}"
