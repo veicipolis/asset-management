@@ -13,6 +13,10 @@ import org.springframework.test.context.ActiveProfiles;
 import com.veici.asset.dto.ReturnCancelForm;
 import com.veici.asset.service.ReturnCancelService;
 import com.veici.asset.service.ReturnReceiveService;
+import com.veici.asset.dto.UserEnabledForm;
+import com.veici.asset.dto.UserRolesForm;
+import com.veici.asset.service.UserAdminService;
+import java.util.Set;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +39,9 @@ class AssetIssueConcurrencyTests {
 
     @Autowired
     ReturnCancelService returnCancelService;
+
+    @Autowired
+    UserAdminService userAdminService;
 
     @Test
     void onlyOneRequestCanIssueTheSameAsset() throws Exception {
@@ -467,6 +474,144 @@ class AssetIssueConcurrencyTests {
             return false;
         } finally {
             SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void concurrentDisablingMustKeepOneSystemAdmin() throws Exception {
+        assertEquals("asset_management_test",
+                jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("asset_test@localhost",
+                jdbc.queryForObject("SELECT CURRENT_USER()", String.class));
+
+        String adminCountSql = """
+            SELECT COUNT(*) FROM app_user u
+            WHERE u.enabled = TRUE
+              AND EXISTS (
+                  SELECT 1 FROM user_role ur
+                  JOIN app_role r ON r.id = ur.role_id
+                  WHERE ur.user_id = u.id AND r.code = 'SYSTEM_ADMIN'
+              )
+            """;
+
+        // 此场景必须只有本次创建的两个管理员，不修改其他已有账号。
+        assertEquals(0L, count(adminCountSql),
+                "测试库已有启用的系统管理员，请先检查测试数据，不要直接删除账号");
+
+        String prefix = "admin_" + UUID.randomUUID()
+                .toString().replace("-", "").substring(0, 12);
+        String firstName = prefix + "_admin";
+        String secondName = prefix + "_e1";
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+
+        try {
+            Long departmentId = jdbc.queryForObject(
+                    "SELECT MIN(id) FROM department", Long.class);
+            assertNotNull(departmentId);
+
+            long firstId = createUser(
+                    firstName, departmentId, "SYSTEM_ADMIN");
+            long secondId = createUser(
+                    secondName, departmentId, "SYSTEM_ADMIN");
+
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch start = new CountDownLatch(1);
+
+            Future<Boolean> first = pool.submit(() ->
+                    runReturnOperation(
+                            firstName, "SYSTEM_ADMIN", ready, start,
+                            () -> {
+                                var form = new UserEnabledForm();
+                                form.setVersion(0L);
+                                form.setEnabled(false);
+                                userAdminService.changeEnabled(firstId, form);
+                            },
+                            "不能停用最后一个启用的系统管理员"));
+
+            Future<Boolean> second = pool.submit(() ->
+                    runReturnOperation(
+                            secondName, "SYSTEM_ADMIN", ready, start,
+                            () -> {
+                                var form = new UserEnabledForm();
+                                form.setVersion(0L);
+                                form.setEnabled(false);
+                                userAdminService.changeEnabled(secondId, form);
+                            },
+                            "不能停用最后一个启用的系统管理员"));
+
+            assertTrue(ready.await(10, TimeUnit.SECONDS),
+                    "工作线程未及时准备就绪");
+            start.countDown();
+
+            boolean firstDisabled = first.get(30, TimeUnit.SECONDS);
+            boolean secondDisabled = second.get(30, TimeUnit.SECONDS);
+
+            assertNotEquals(firstDisabled, secondDisabled,
+                    "必须恰好一个停用成功");
+            assertEquals(1L, count(adminCountSql),
+                    "必须保留一个启用的系统管理员");
+
+            long remainingId = firstDisabled ? secondId : firstId;
+            String remainingName = firstDisabled ? secondName : firstName;
+            long disabledId = firstDisabled ? firstId : secondId;
+
+            assertEquals(Boolean.TRUE, jdbc.queryForObject(
+                    "SELECT enabled FROM app_user WHERE id = ?",
+                    Boolean.class, remainingId));
+            assertEquals(Boolean.FALSE, jdbc.queryForObject(
+                    "SELECT enabled FROM app_user WHERE id = ?",
+                    Boolean.class, disabledId));
+
+            // 再验证：最后一个管理员不能把自己改成普通员工。
+            var context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(
+                    new UsernamePasswordAuthenticationToken(
+                            remainingName, null,
+                            List.of(new SimpleGrantedAuthority(
+                                    "ROLE_SYSTEM_ADMIN"))));
+            SecurityContextHolder.setContext(context);
+
+            Long employeeRoleId = jdbc.queryForObject(
+                    "SELECT id FROM app_role WHERE code = 'EMPLOYEE'",
+                    Long.class);
+
+            Long beforeVersion = jdbc.queryForObject(
+                    "SELECT version FROM app_user WHERE id = ?",
+                    Long.class, remainingId);
+
+            var rolesForm = new UserRolesForm();
+            rolesForm.setVersion(beforeVersion);
+            rolesForm.setRoleIds(Set.of(employeeRoleId));
+
+            var exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> userAdminService.updateRoles(remainingId, rolesForm));
+
+            assertEquals(
+                    "不能移除最后一个启用的系统管理员的管理员角色",
+                    exception.getMessage());
+
+            assertEquals(1L, count(adminCountSql));
+            assertEquals(beforeVersion, jdbc.queryForObject(
+                    "SELECT version FROM app_user WHERE id = ?",
+                    Long.class, remainingId));
+
+            assertEquals(1L, count("""
+                SELECT COUNT(*) FROM operation_log
+                WHERE actor_id IN (?, ?)
+                """, firstId, secondId),
+                    "只有成功停用应产生一条日志，两个被拒绝的操作不能新增日志");
+        } finally {
+            SecurityContextHolder.clearContext();
+            pool.shutdownNow();
+
+            if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                throw new IllegalStateException(
+                        "工作线程未结束，保留测试数据：" + prefix);
+            }
+
+            cleanup(prefix, prefix + "_asset");
         }
     }
 }
