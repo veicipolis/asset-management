@@ -3,8 +3,8 @@ spring:
     name: asset-management
 
   datasource:
-    url: jdbc:mysql://localhost:3306/asset_management
-    username: asset_app
+    url: ${ASSET_DB_URL:jdbc:mysql://localhost:3306/asset_management}
+    username: ${ASSET_DB_USERNAME:asset_app}
     password: ${ASSET_DB_PASSWORD}
 
   jpa:

@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE asset_management;
 
 -- 领用记录：returned_at为空表示尚未归还

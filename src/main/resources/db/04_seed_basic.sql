@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE asset_management;
 
 -- 四种固定角色
