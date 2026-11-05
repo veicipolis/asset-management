@@ -10,6 +10,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
+import com.veici.asset.dto.ReturnCancelForm;
+import com.veici.asset.service.ReturnCancelService;
+import com.veici.asset.service.ReturnReceiveService;
 
 import java.util.List;
 import java.util.UUID;
@@ -26,6 +29,12 @@ class AssetIssueConcurrencyTests {
 
     @Autowired
     AssetIssueService issueService;
+
+    @Autowired
+    ReturnReceiveService returnReceiveService;
+
+    @Autowired
+    ReturnCancelService returnCancelService;
 
     @Test
     void onlyOneRequestCanIssueTheSameAsset() throws Exception {
@@ -223,42 +232,241 @@ class AssetIssueConcurrencyTests {
     }
 
     private void cleanup(String prefix, String assetCode) {
-        // 使用本次随机生成的完整名称，避免影响其他测试的数据。
         var usernames = List.of(
                 prefix + "_admin", prefix + "_e1",
                 prefix + "_e2", prefix + "_approver");
 
-        jdbc.update("""
+        for (String username : usernames) {
+            jdbc.update("""
                 DELETE FROM operation_log
                 WHERE actor_id IN (
                     SELECT id FROM app_user WHERE username = ?
                 )
-                """, prefix + "_admin");
+                """, username);
+        }
 
         jdbc.update("""
-                DELETE FROM asset_loan
+            DELETE FROM return_application
+            WHERE loan_id IN (
+                SELECT id FROM asset_loan
                 WHERE asset_id IN (
                     SELECT id FROM asset WHERE asset_code = ?
                 )
-                """, assetCode);
+            )
+            """, assetCode);
 
         jdbc.update("""
-                DELETE FROM asset_application
-                WHERE asset_id IN (
-                    SELECT id FROM asset WHERE asset_code = ?
-                )
-                """, assetCode);
+            DELETE FROM asset_loan
+            WHERE asset_id IN (
+                SELECT id FROM asset WHERE asset_code = ?
+            )
+            """, assetCode);
+
+        jdbc.update("""
+            DELETE FROM asset_application
+            WHERE asset_id IN (
+                SELECT id FROM asset WHERE asset_code = ?
+            )
+            """, assetCode);
 
         jdbc.update("DELETE FROM asset WHERE asset_code = ?", assetCode);
 
         for (String username : usernames) {
             jdbc.update("""
-                    DELETE FROM user_role
-                    WHERE user_id IN (
-                        SELECT id FROM app_user WHERE username = ?
-                    )
-                    """, username);
+                DELETE FROM user_role
+                WHERE user_id IN (
+                    SELECT id FROM app_user WHERE username = ?
+                )
+                """, username);
             jdbc.update("DELETE FROM app_user WHERE username = ?", username);
+        }
+    }
+
+    @Test
+    void receiveAndCancelCannotBothSucceed() throws Exception {
+        assertEquals("asset_management_test",
+                jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("asset_test@localhost",
+                jdbc.queryForObject("SELECT CURRENT_USER()", String.class));
+
+        String prefix = "return_" + UUID.randomUUID()
+                .toString().replace("-", "").substring(0, 12);
+        String adminName = prefix + "_admin";
+        String employeeName = prefix + "_e1";
+        String assetCode = prefix + "_asset";
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+
+        try {
+            Long departmentId = jdbc.queryForObject(
+                    "SELECT MIN(id) FROM department", Long.class);
+            Long categoryId = jdbc.queryForObject(
+                    "SELECT MIN(id) FROM asset_category", Long.class);
+            assertNotNull(departmentId);
+            assertNotNull(categoryId);
+
+            long adminId = createUser(
+                    adminName, departmentId, "ASSET_ADMIN");
+            long employeeId = createUser(
+                    employeeName, departmentId, "EMPLOYEE");
+            long approverId = createUser(
+                    prefix + "_approver", departmentId, "DEPT_APPROVER");
+
+            jdbc.update("""
+                INSERT INTO asset
+                    (asset_code, name, category_id, purchase_date,
+                     original_value, location, status, version)
+                VALUES (?, '归还竞争测试资产', ?, '2026-01-01',
+                        1000, '测试库房', 'IN_USE', 1)
+                """, assetCode, categoryId);
+
+            long assetId = jdbc.queryForObject(
+                    "SELECT id FROM asset WHERE asset_code = ?",
+                    Long.class, assetCode);
+
+            long applicationId = createApplication(
+                    assetId, employeeId, departmentId, approverId);
+
+            jdbc.update("""
+                UPDATE asset_application
+                SET status = 'ISSUED', version = 2
+                WHERE id = ?
+                """, applicationId);
+
+            // 固定历史时间，避免数据库与 JVM 时区差异干扰本测试。
+            jdbc.update("""
+                INSERT INTO asset_loan
+                    (application_id, asset_id, borrower_id,
+                     issued_by, issued_at)
+                VALUES (?, ?, ?, ?, '2020-01-01 09:00:00')
+                """, applicationId, assetId, employeeId, adminId);
+
+            long loanId = jdbc.queryForObject(
+                    "SELECT id FROM asset_loan WHERE application_id = ?",
+                    Long.class, applicationId);
+
+            jdbc.update("""
+                INSERT INTO return_application
+                    (loan_id, applicant_id, status, created_at, version)
+                VALUES (?, ?, 'PENDING', '2020-01-02 09:00:00', 0)
+                """, loanId, employeeId);
+
+            long returnId = jdbc.queryForObject(
+                    "SELECT id FROM return_application WHERE loan_id = ?",
+                    Long.class, loanId);
+
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch start = new CountDownLatch(1);
+
+            Future<Boolean> receive = pool.submit(() ->
+                    runReturnOperation(
+                            adminName, "ASSET_ADMIN", ready, start,
+                            () -> returnReceiveService.receive(returnId, 0L),
+                            "该归还申请已处理或已取消"));
+
+            Future<Boolean> cancel = pool.submit(() ->
+                    runReturnOperation(
+                            employeeName, "EMPLOYEE", ready, start,
+                            () -> {
+                                var form = new ReturnCancelForm();
+                                form.setVersion(0L);
+                                returnCancelService.cancel(returnId, form);
+                            },
+                            "归还申请已发生变化，请刷新页面后重试"));
+
+            assertTrue(ready.await(10, TimeUnit.SECONDS),
+                    "工作线程未及时准备就绪");
+            start.countDown();
+
+            boolean received = receive.get(30, TimeUnit.SECONDS);
+            boolean cancelled = cancel.get(30, TimeUnit.SECONDS);
+
+            assertNotEquals(received, cancelled,
+                    "接收与取消必须恰好一个成功");
+
+            assertEquals(received ? "COMPLETED" : "CANCELLED",
+                    jdbc.queryForObject(
+                            "SELECT status FROM return_application WHERE id = ?",
+                            String.class, returnId));
+
+            assertEquals(received ? "IDLE" : "IN_USE",
+                    jdbc.queryForObject(
+                            "SELECT status FROM asset WHERE id = ?",
+                            String.class, assetId));
+
+            assertEquals(received ? 0L : 1L, count("""
+                SELECT COUNT(*) FROM asset_loan
+                WHERE id = ? AND returned_at IS NULL
+                """, loanId));
+
+            if (received) {
+                assertEquals(adminId, jdbc.queryForObject(
+                        "SELECT received_by FROM asset_loan WHERE id = ?",
+                        Long.class, loanId).longValue());
+
+                assertEquals(1L, count("""
+                    SELECT COUNT(*) FROM return_application
+                    WHERE id = ? AND completed_at IS NOT NULL
+                        AND cancelled_at IS NULL
+                    """, returnId));
+            } else {
+                assertNull(jdbc.queryForObject(
+                        "SELECT received_by FROM asset_loan WHERE id = ?",
+                        Long.class, loanId));
+
+                assertEquals(1L, count("""
+                    SELECT COUNT(*) FROM return_application
+                    WHERE id = ? AND cancelled_at IS NOT NULL
+                        AND completed_at IS NULL
+                    """, returnId));
+            }
+
+            assertEquals(1L, count("""
+                SELECT COUNT(*) FROM operation_log
+                WHERE actor_id IN (?, ?)
+                """, adminId, employeeId));
+
+            long winningActor = received ? adminId : employeeId;
+            assertEquals(1L, count(
+                    "SELECT COUNT(*) FROM operation_log WHERE actor_id = ?",
+                    winningActor));
+        } finally {
+            pool.shutdownNow();
+            if (!pool.awaitTermination(60, TimeUnit.SECONDS)) {
+                throw new IllegalStateException(
+                        "工作线程未结束，保留测试数据：" + prefix);
+            }
+            cleanup(prefix, assetCode);
+        }
+    }
+
+    private boolean runReturnOperation(
+            String username,
+            String role,
+            CountDownLatch ready,
+            CountDownLatch start,
+            Runnable operation,
+            String expectedConflictMessage) throws Exception {
+
+        var context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(
+                new UsernamePasswordAuthenticationToken(
+                        username, null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role))));
+        SecurityContextHolder.setContext(context);
+
+        try {
+            ready.countDown();
+            if (!start.await(15, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("等待开始信号超时");
+            }
+            operation.run();
+            return true;
+        } catch (IllegalArgumentException exception) {
+            assertEquals(expectedConflictMessage, exception.getMessage());
+            return false;
+        } finally {
+            SecurityContextHolder.clearContext();
         }
     }
 }
