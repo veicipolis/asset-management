@@ -1,0 +1,50 @@
+name: asset-management
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请配置数据库root密码}
+      MYSQL_ROOT_HOST: localhost
+      MYSQL_DATABASE: asset_management
+      MYSQL_USER: asset_app
+      MYSQL_PASSWORD: ${ASSET_DB_PASSWORD:?请配置应用数据库密码}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=60
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          MYSQL_PWD="$${MYSQL_PASSWORD}"
+          mysql --protocol=TCP -h 127.0.0.1 -u asset_app
+          -D asset_management
+          -e "SELECT COUNT(*) FROM asset;" >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  app:
+    image: asset-management:0.1
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASSET_DB_URL: jdbc:mysql://db:3306/asset_management?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      ASSET_DB_USERNAME: asset_app
+      ASSET_DB_PASSWORD: ${ASSET_DB_PASSWORD:?请配置应用数据库密码}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "10"
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  mysql-data:
