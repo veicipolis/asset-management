@@ -326,4 +326,38 @@ public class OperationLogRepository {
                 .setParameter("afterVersion", afterVersion)
                 .executeUpdate();
     }
+
+    public void recordDepartmentChanged(
+            Long actorId,
+            Long departmentId,
+            boolean created,
+            String beforeName,
+            String afterName,
+            Long beforeVersion,
+            Long afterVersion) {
+
+        entityManager.createNativeQuery("""
+        INSERT INTO operation_log
+            (actor_id, log_category, action,
+             target_type, target_id, result, details)
+        VALUES
+            (:actorId, 'ADMIN', :action,
+             'DEPARTMENT', :departmentId, 'SUCCESS',
+             JSON_OBJECT(
+                 'beforeName', :beforeName,
+                 'afterName', :afterName,
+                 'beforeVersion', :beforeVersion,
+                 'afterVersion', :afterVersion
+             ))
+        """)
+                .setParameter("actorId", actorId)
+                .setParameter("departmentId", departmentId)
+                .setParameter("action",
+                        created ? "DEPARTMENT_CREATE" : "DEPARTMENT_UPDATE")
+                .setParameter("beforeName", beforeName)
+                .setParameter("afterName", afterName)
+                .setParameter("beforeVersion", beforeVersion)
+                .setParameter("afterVersion", afterVersion)
+                .executeUpdate();
+    }
 }

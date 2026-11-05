@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>部门管理</title>
+</head>
+<body>
+<h1>部门管理</h1>
+
+<p>
+    <a th:href="@{/system/departments/new}">新增部门</a>
+    |
+    <a th:href="@{/system/users}">用户管理</a>
+</p>
+
+<p th:if="${success}" th:text="${success}" style="color: green;"></p>
+
+<table border="1" cellpadding="8">
+    <thead>
+    <tr>
+        <th>部门编号</th>
+        <th>部门名称</th>
+        <th>操作</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr th:if="${departmentPage.empty}">
+        <td colspan="3">暂无部门</td>
+    </tr>
+
+    <tr th:each="item : ${departmentPage.content}">
+        <td th:text="${item.id}"></td>
+        <td th:text="${item.name}"></td>
+        <td>
+            <a th:href="@{/system/departments/{id}/edit(id=${item.id})}">
+                编辑
+            </a>
+        </td>
+    </tr>
+    </tbody>
+</table>
+
+<p>
+    <span th:text="|共 ${departmentPage.totalElements} 个部门|"></span>
+
+    <a th:if="${departmentPage.hasPrevious()}"
+       th:href="@{/system/departments(page=${departmentPage.number - 1})}">
+        上一页
+    </a>
+
+    <span th:text="|第 ${departmentPage.number + 1} 页|"></span>
+
+    <a th:if="${departmentPage.hasNext()}"
+       th:href="@{/system/departments(page=${departmentPage.number + 1})}">
+        下一页
+    </a>
+</p>
+</body>
+</html>
