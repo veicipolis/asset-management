@@ -17,10 +17,17 @@ import com.veici.asset.dto.UserEnabledForm;
 import com.veici.asset.dto.UserRolesForm;
 import com.veici.asset.service.UserAdminService;
 import java.util.Set;
-
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
+import com.veici.asset.repository.OperationLogRepository;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.util.AopTestUtils;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
+
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -42,6 +49,9 @@ class AssetIssueConcurrencyTests {
 
     @Autowired
     UserAdminService userAdminService;
+
+    @MockitoSpyBean
+    OperationLogRepository operationLogRepository;
 
     @Test
     void onlyOneRequestCanIssueTheSameAsset() throws Exception {
@@ -612,6 +622,120 @@ class AssetIssueConcurrencyTests {
             }
 
             cleanup(prefix, prefix + "_asset");
+        }
+    }
+
+    @Test
+    void logFailureMustRollbackTheEntireIssue() {
+        assertEquals("asset_management_test",
+                jdbc.queryForObject("SELECT DATABASE()", String.class));
+        assertEquals("asset_test@localhost",
+                jdbc.queryForObject("SELECT CURRENT_USER()", String.class));
+
+        String prefix = "rollback_" + UUID.randomUUID()
+                .toString().replace("-", "").substring(0, 12);
+        String adminName = prefix + "_admin";
+        String assetCode = prefix + "_asset";
+
+        OperationLogRepository logSpy =
+                AopTestUtils.getUltimateTargetObject(operationLogRepository);
+
+        try {
+            Long departmentId = jdbc.queryForObject(
+                    "SELECT MIN(id) FROM department", Long.class);
+            Long categoryId = jdbc.queryForObject(
+                    "SELECT MIN(id) FROM asset_category", Long.class);
+            assertNotNull(departmentId);
+            assertNotNull(categoryId);
+
+            long adminId = createUser(
+                    adminName, departmentId, "ASSET_ADMIN");
+            long employeeId = createUser(
+                    prefix + "_e1", departmentId, "EMPLOYEE");
+            long approverId = createUser(
+                    prefix + "_approver", departmentId, "DEPT_APPROVER");
+
+            jdbc.update("""
+                INSERT INTO asset
+                    (asset_code, name, category_id, purchase_date,
+                     original_value, location, status, version)
+                VALUES (?, '事务回滚测试资产', ?, '2026-01-01',
+                        1000, '测试库房', 'IDLE', 0)
+                """, assetCode, categoryId);
+
+            long assetId = jdbc.queryForObject(
+                    "SELECT id FROM asset WHERE asset_code = ?",
+                    Long.class, assetCode);
+
+            long applicationId = createApplication(
+                    assetId, employeeId, departmentId, approverId);
+
+            // 仅让本次测试的发放日志失败。
+            doThrow(new IllegalStateException("模拟日志写入失败"))
+                    .when(logSpy)
+                    .recordAssetIssued(
+                            eq(adminId),
+                            anyLong(),
+                            eq(applicationId),
+                            eq(assetId),
+                            eq(employeeId));
+
+            var context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(
+                    new UsernamePasswordAuthenticationToken(
+                            adminName, null,
+                            List.of(new SimpleGrantedAuthority(
+                                    "ROLE_ASSET_ADMIN"))));
+            SecurityContextHolder.setContext(context);
+
+            var form = new AssetIssueForm();
+            form.setApplicationVersion(1L);
+            form.setAssetVersion(0L);
+
+            var exception = assertThrows(
+                    InvalidDataAccessApiUsageException.class,
+                    () -> issueService.issue(applicationId, form));
+
+            var cause = assertInstanceOf(
+                    IllegalStateException.class,
+                    exception.getCause());
+
+            assertEquals("模拟日志写入失败", cause.getMessage());
+
+            // 确认确实执行到了日志步骤，而非提前被其他校验拒绝。
+            verify(logSpy, times(1)).recordAssetIssued(
+                    eq(adminId),
+                    anyLong(),
+                    eq(applicationId),
+                    eq(assetId),
+                    eq(employeeId));
+
+            // 服务事务结束后，通过 JDBC 检查数据库最终状态。
+            assertEquals("IDLE", jdbc.queryForObject(
+                    "SELECT status FROM asset WHERE id = ?",
+                    String.class, assetId));
+            assertEquals(0L, jdbc.queryForObject(
+                    "SELECT version FROM asset WHERE id = ?",
+                    Long.class, assetId).longValue());
+
+            assertEquals("APPROVED", jdbc.queryForObject(
+                    "SELECT status FROM asset_application WHERE id = ?",
+                    String.class, applicationId));
+            assertEquals(1L, jdbc.queryForObject(
+                    "SELECT version FROM asset_application WHERE id = ?",
+                    Long.class, applicationId).longValue());
+
+            assertEquals(0L, count(
+                    "SELECT COUNT(*) FROM asset_loan WHERE asset_id = ?",
+                    assetId));
+
+            assertEquals(0L, count(
+                    "SELECT COUNT(*) FROM operation_log WHERE actor_id = ?",
+                    adminId));
+        } finally {
+            SecurityContextHolder.clearContext();
+            reset(logSpy);
+            cleanup(prefix, assetCode);
         }
     }
 }
