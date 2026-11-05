@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>分配用户角色</title>
+</head>
+<body>
+<h1>分配用户角色</h1>
+
+<p th:text="|用户编号：${userId}|"></p>
+<p><a th:href="@{/system/users}">返回用户列表</a></p>
+<p>可以选择多个角色；全部取消勾选表示移除所有角色。</p>
+
+<form th:action="@{/system/users/{id}/roles(id=${userId})}"
+      th:object="${form}"
+      method="post">
+
+    <input type="hidden" th:field="*{version}">
+
+    <!-- 即使全部取消勾选，也提交“角色字段已出现在表单中”的标记。 -->
+    <input type="hidden" name="_roleIds" value="on">
+
+    <ul th:if="${#fields.hasAnyErrors()}" style="color: red;">
+        <li th:each="message : ${#fields.allErrors()}"
+            th:text="${message}"></li>
+    </ul>
+
+    <p th:each="role : ${roles}">
+        <label>
+            <input type="checkbox"
+                   th:field="*{roleIds}"
+                   th:value="${role.id}">
+            <span th:text="|${role.name}（${role.code}）|"></span>
+        </label>
+    </p>
+
+    <button type="submit">保存角色</button>
+</form>
+</body>
+</html>

@@ -27,6 +27,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.veici.asset.entity.Department;
 import java.util.List;
 import com.veici.asset.dto.UserEditForm;
+import com.veici.asset.dto.UserRolesForm;
+import com.veici.asset.entity.AppRole;
+
+import java.util.HashSet;
+import java.util.Set;
 
 import java.util.Objects;
 
@@ -255,6 +260,104 @@ public class UserAdminService {
                 target.getDisplayName(),
                 beforeDepartmentId,
                 target.getDepartmentId(),
+                beforeVersion,
+                target.getVersion()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<AppRole> findRoles() {
+        requireSystemAdmin();
+        return roleRepository.findAllByOrderByCodeAsc();
+    }
+
+    @Transactional(readOnly = true)
+    public UserRolesForm getRolesForm(@NotNull @Positive Long userId) {
+        requireSystemAdmin();
+
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "用户不存在"));
+
+        var form = new UserRolesForm();
+        form.setVersion(user.getVersion());
+        form.setRoleIds(user.getRoles().stream()
+                .map(AppRole::getId)
+                .collect(Collectors.toSet()));
+
+        return form;
+    }
+
+    @Transactional
+    public void updateRoles(
+            @NotNull @Positive Long userId,
+            @NotNull @Valid UserRolesForm form) {
+
+        // 与账号启停共用同一把锁。
+        roleRepository.findByCodeForUpdate("SYSTEM_ADMIN")
+                .orElseThrow(() ->
+                        new IllegalStateException("缺少系统管理员角色配置"));
+
+        var operator = requireSystemAdmin();
+
+        var target = userRepository.findByIdForUpdate(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "用户不存在"));
+
+        if (!Objects.equals(target.getVersion(), form.getVersion())) {
+            throw new IllegalArgumentException(
+                    "用户信息已发生变化，请重新打开角色分配页面");
+        }
+
+        Set<Long> requestedIds = new HashSet<>(form.getRoleIds());
+        var selectedRoles = roleRepository.findAllById(requestedIds);
+
+        if (selectedRoles.size() != requestedIds.size()) {
+            throw new IllegalArgumentException("存在无效的角色编号，请重新选择");
+        }
+
+        Set<Long> currentIds = target.getRoles().stream()
+                .map(AppRole::getId)
+                .collect(Collectors.toSet());
+
+        if (currentIds.equals(requestedIds)) {
+            throw new IllegalArgumentException("角色分配未发生变化");
+        }
+
+        boolean currentlySystemAdmin = target.getRoles().stream()
+                .anyMatch(role -> "SYSTEM_ADMIN".equals(role.getCode()));
+
+        boolean remainsSystemAdmin = selectedRoles.stream()
+                .anyMatch(role -> "SYSTEM_ADMIN".equals(role.getCode()));
+
+        if (target.isEnabled()
+                && currentlySystemAdmin
+                && !remainsSystemAdmin
+                && userRepository.countEnabledSystemAdmins() <= 1) {
+            throw new IllegalArgumentException(
+                    "不能移除最后一个启用的系统管理员的管理员角色");
+        }
+
+        String beforeRoles = target.getRoles().stream()
+                .map(AppRole::getCode)
+                .sorted()
+                .collect(Collectors.joining(", "));
+
+        String afterRoles = selectedRoles.stream()
+                .map(AppRole::getCode)
+                .sorted()
+                .collect(Collectors.joining(", "));
+
+        Long beforeVersion = target.getVersion();
+
+        target.replaceRoles(new HashSet<>(selectedRoles));
+        userRepository.flush();
+
+        logRepository.recordUserRolesChanged(
+                operator.getId(),
+                target.getId(),
+                beforeRoles,
+                afterRoles,
                 beforeVersion,
                 target.getVersion()
         );

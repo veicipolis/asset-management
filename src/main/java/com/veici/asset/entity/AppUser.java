@@ -86,4 +86,17 @@ public class AppUser extends VersionedEntity {
         this.displayName = normalizedName;
         this.departmentId = departmentId;
     }
+
+    public void replaceRoles(Set<AppRole> newRoles) {
+        if (newRoles == null
+                || newRoles.stream().anyMatch(
+                role -> role == null || role.getId() == null)) {
+            throw new IllegalArgumentException("角色信息无效");
+        }
+
+        // 先复制，再修改 Hibernate 管理的原集合。
+        Set<AppRole> copy = new HashSet<>(newRoles);
+        roles.clear();
+        roles.addAll(copy);
+    }
 }

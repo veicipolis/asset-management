@@ -13,6 +13,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import com.veici.asset.dto.UserCreateForm;
 import org.springframework.dao.DataIntegrityViolationException;
 import com.veici.asset.dto.UserEditForm;
+import com.veici.asset.dto.UserRolesForm;
 
 @Controller
 @RequiredArgsConstructor
@@ -133,5 +134,43 @@ public class UserAdminController {
         model.addAttribute("userId", id);
         model.addAttribute("departments", userAdminService.findDepartments());
         return "system/user-edit";
+    }
+
+    @GetMapping("/{id}/roles")
+    public String rolesForm(@PathVariable Long id, Model model) {
+        model.addAttribute("form", userAdminService.getRolesForm(id));
+        model.addAttribute("userId", id);
+        model.addAttribute("roles", userAdminService.findRoles());
+        return "system/user-roles";
+    }
+
+    @PostMapping("/{id}/roles")
+    public String updateRoles(
+            @PathVariable Long id,
+            @Valid @ModelAttribute("form") UserRolesForm form,
+            BindingResult bindingResult,
+            Model model,
+            RedirectAttributes redirectAttributes) {
+
+        if (!bindingResult.hasErrors()) {
+            try {
+                userAdminService.updateRoles(id, form);
+                redirectAttributes.addFlashAttribute("success", "用户角色已更新");
+                return "redirect:/system/users";
+            } catch (IllegalArgumentException ex) {
+                bindingResult.reject("updateFailed", ex.getMessage());
+            } catch (OptimisticLockingFailureException ex) {
+                bindingResult.reject(
+                        "updateFailed", "用户信息已发生变化，请重新打开角色分配页面");
+            } catch (DataIntegrityViolationException ex) {
+                bindingResult.reject(
+                        "updateFailed", "角色信息发生变化，请重新打开页面后重试");
+            }
+        }
+
+        // 保留提交的版本号，不能自动换成新版本。
+        model.addAttribute("userId", id);
+        model.addAttribute("roles", userAdminService.findRoles());
+        return "system/user-roles";
     }
 }
