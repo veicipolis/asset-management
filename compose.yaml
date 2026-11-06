@@ -33,7 +33,7 @@ services:
       start_period: 60s
 
   app:
-    image: asset-management:0.1
+    image: asset-management:0.1.0
     restart: unless-stopped
     depends_on:
       db:
